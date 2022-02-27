@@ -24,10 +24,10 @@ def build_index(
     intents: set,
     output_dir: Path
 ) -> None:
-    intent2idx = {tag: i for i, tag in enumerate(intents)}
-    intent_tag_path = output_dir / "intent2idx.json"
-    intent_tag_path.write_text(json.dumps(intent2idx, indent=2))
-    logger.info(f"Intent-2-Index saved at {str(intent_tag_path.resolve())}")
+    intent2idx = {intent: idx for idx, intent in enumerate(intents)}
+    intent_idx_path = output_dir / "intent2idx.json"
+    intent_idx_path.write_text(json.dumps(intent2idx, indent=2))
+    logger.info(f"Intent-2-Index saved at {str(intent_idx_path.resolve())}")
 
 def build_vocab(
     common_words: set,
