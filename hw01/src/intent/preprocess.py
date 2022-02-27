@@ -10,8 +10,15 @@ from tqdm.auto import tqdm
 import torch
 
 from src import logger
-from src.utils import filter_marks
 from src.utils.vocab import Vocab
+
+MARKS = ".,;!?()"
+
+def filter_marks(text: str) -> str:
+    result = text
+    for mark in MARKS:
+        result = result.replace(mark, " ")
+    return result
 
 def build_index(
     intents: set,
