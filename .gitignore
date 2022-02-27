@@ -1,0 +1,11 @@
+# Python cache
+__pycache__/
+
+# Pyenv
+.python-version
+
+# Training data / cache
+data/
+cache/
+ckpt/
+pred/

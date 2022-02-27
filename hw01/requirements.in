@@ -1,0 +1,5 @@
+# requirements
+torch==1.10.2+cu113
+tensorflow==2.8.0
+pytorch-lightning==1.5.10
+tqdm
