@@ -5,7 +5,7 @@ import torch
 from pytorch_lightning import Trainer
 
 from src import logger
-from src.intent.data.manager import IntentDataManager
+from src.intent.data_manager import IntentDataManager
 from src.intent.models import IntentClassifier
 
 def test(args: Namespace) -> None:

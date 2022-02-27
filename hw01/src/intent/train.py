@@ -12,7 +12,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from src import logger
 from src.utils.early_stopping import EarlyStoppingWarmup
-from src.intent.data.manager import IntentDataManager
+from src.intent.data_manager import IntentDataManager
 from src.intent.models import IntentClassifier
 
 def train(args: Namespace) -> None:
