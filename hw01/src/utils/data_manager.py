@@ -1,7 +1,7 @@
 from pathlib import Path
 import pickle
 import json
-from typing import Optional
+from typing import Optional, Literal
 
 import torch
 from torch.utils import data
@@ -15,6 +15,7 @@ class DataManager:
         max_len: int,
         batch_size: int,
         num_workers: int,
+        target: Literal["intent", "tag"],
         data_dir: Optional[Path]=None,
         test_file: Optional[Path]=None,
     ) -> None:
@@ -22,16 +23,17 @@ class DataManager:
         self.max_len = max_len if max_len > 0 else None
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.target = target
         self.data_dir = data_dir
         self.test_file = test_file
 
         self.load_vocab()
-        self.load_intent2idx()
+        self.load_target2idx()
         self.load_embeddings()
 
     @property
     def num_class(self) -> int:
-        return len(self.intent2idx) if hasattr(self, "intent2idx") else 0
+        return len(self.target2idx) if hasattr(self, "target2idx") else 0
 
     def load_vocab(self) -> None:
         vocab_path = self.cache_dir / "vocab.pkl"
@@ -39,14 +41,14 @@ class DataManager:
             self.vocab = pickle.load(f)
         logger.info(f"Vocab loaded from {str(vocab_path.resolve())}")
 
-    def load_intent2idx(self) -> None:
-        intent_idx_path = self.cache_dir / "intent2idx.json"
-        self.intent2idx = json.loads(intent_idx_path.read_text())
-        self.idx2intent = {
-            idx: intent
-            for intent, idx in self.intent2idx.items()
+    def load_target2idx(self) -> None:
+        target_idx_path = self.cache_dir / f"{self.target}2idx.json"
+        self.target2idx = json.loads(target_idx_path.read_text())
+        self.idx2target = {
+            idx: target
+            for target, idx in self.target2idx.items()
         }
-        logger.info(f"Intent-2-Index loaded from {str(intent_idx_path.resolve())}")
+        logger.info(f"{self.target.capitalize()}-2-Index loaded from {str(target_idx_path.resolve())}")
 
     def load_embeddings(self) -> None:
         embeddings_path = self.cache_dir / "embeddings.pt"

@@ -7,32 +7,43 @@ from torch.utils import data
 
 from src.utils.data_manager import DataManager
 from src.utils.dataset import TokenDataset
-from src.intent.preprocess import filter_marks
+from src.utils.vocab import pad_to_len
 
-class IntentDataManager(DataManager):
+class SlotDataManager(DataManager):
     def __init__(self, *args, **kwargs):
-        super(IntentDataManager, self).__init__(target="intent", *args, **kwargs)
+        super(SlotDataManager, self).__init__(target="tag", *args, **kwargs)
+        self.empty_tag_idx = -1
 
     @property
-    def intent2idx(self) -> Dict[str, int]:
+    def tag2idx(self) -> Dict[str, int]:
         return self.target2idx
 
     @property
-    def idx2intent(self) -> Dict[int, str]:
+    def idx2tag(self) -> Dict[int, str]:
         return self.idx2target
 
     def parse_data(
         self,
         raw_data: List[dict],
-        with_intents: bool=False
+        with_tags: bool=False
     ) -> Union[Tuple[Tensor, List[str], Tensor, Tensor], Tuple[Tensor, List[str], Tensor]]:
-        x = [filter_marks(d["text"]).lower().split() for d in raw_data]
+        x = [
+            [token.lower() for token in d["tokens"]]
+            for d in raw_data
+        ]
         ids = [d["id"] for d in raw_data]
-        length = torch.tensor([len(text) for text in x])
+        length = torch.tensor([len(tokens) for tokens in x])
         x = torch.tensor(self.vocab.encode_batch(x, max_len=self.max_len))
-        if not with_intents:
+        if not with_tags:
             return x, ids, length
-        y = torch.tensor([self.intent2idx[d["intent"]] for d in raw_data])
+        y = torch.tensor(pad_to_len(
+            seqs=[
+                [self.tag2idx[tag] for tag in d["tags"]]
+                for d in raw_data
+            ],
+            to_len=self.max_len,
+            padding=self.empty_tag_idx
+        ))
         return x, ids, length, y
 
     def get_train_dataloader(self, with_eval=False, shuffle=True) -> data.DataLoader:
@@ -42,7 +53,7 @@ class IntentDataManager(DataManager):
         if with_eval:
             eval_data_path = self.data_dir / "eval.json"
             raw_data.extend(json.loads(eval_data_path.read_text()))
-        x, ids, length, y = self.parse_data(raw_data, with_intents=True)
+        x, ids, length, y = self.parse_data(raw_data, with_tags=True)
         dataset = TokenDataset(x, ids, length, y)
         dataloader = data.DataLoader(
             dataset=dataset,
@@ -56,7 +67,7 @@ class IntentDataManager(DataManager):
         assert self.data_dir is not None
         data_path = self.data_dir / "eval.json"
         raw_data = json.loads(data_path.read_text())
-        x, ids, length, y = self.parse_data(raw_data, with_intents=True)
+        x, ids, length, y = self.parse_data(raw_data, with_tags=True)
         dataset = TokenDataset(x, ids, length, y)
         dataloader = data.DataLoader(
             dataset=dataset,
@@ -69,7 +80,7 @@ class IntentDataManager(DataManager):
     def get_test_dataloader(self) -> data.DataLoader:
         assert self.test_file is not None
         raw_data = json.loads(self.test_file.read_text())
-        x, ids, length = self.parse_data(raw_data, with_intents=False)
+        x, ids, length = self.parse_data(raw_data, with_tags=False)
         dataset = TokenDataset(x, ids, length)
         dataloader = data.DataLoader(
             dataset=dataset,
