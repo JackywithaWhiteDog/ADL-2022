@@ -2,6 +2,7 @@ from argparse import Namespace
 
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger
 
 from src import logger
 from src.utils.early_stopping import EarlyStoppingWarmup
@@ -50,8 +51,11 @@ def train(args: Namespace) -> None:
         save_on_train_epoch_end=False
     )
 
+    tensorboard_logger = TensorBoardLogger("lightning_logs", name="intent")
+
     if args.device.type == "cpu":
         trainer = Trainer(
+            logger=tensorboard_logger,
             accelerator="cpu",
             deterministic=True,
             max_epochs=args.num_epoch,
@@ -62,6 +66,7 @@ def train(args: Namespace) -> None:
         )
     else:
         trainer = Trainer(
+            logger=tensorboard_logger,
             devices=[args.device.index] if args.device.index else 1,
             accelerator="gpu",
             deterministic=True,
