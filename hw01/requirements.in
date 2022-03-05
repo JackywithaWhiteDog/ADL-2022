@@ -1,5 +1,8 @@
 # requirements
+--find-links https://download.pytorch.org/whl/cu113/torch_stable.html
+
 torch==1.10.2+cu113
 tensorflow==2.8.0
 pytorch-lightning==1.5.10
+seqeval==1.2.2
 tqdm
