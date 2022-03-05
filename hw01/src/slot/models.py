@@ -45,8 +45,14 @@ class SlotTagger(LightningModule):
         # logger.info(f"Bidirectional: {self.bidirectional}")
         self.save_hyperparameters()
 
-    def acc(self, pred: Tensor, target: Tensor) -> Tensor:
+    def token_acc(self, pred: Tensor, target: Tensor) -> Tensor:
         return (pred.argmax(dim=1) == target).float().mean()
+
+    def join_acc(self, pred: Tensor, target: Tensor, length: Tensor) -> Tensor:
+        return torch.tensor([
+            torch.all(sen_val[:sen_len].argmax(dim=1) == sen_tags[:sen_len])
+            for sen_val, sen_tags, sen_len in zip(pred, target, length)
+        ]).float().mean()
 
     def forward(self, x: Tensor, length: Tensor) -> Tensor:
         embeddings = self.embedding(x)
@@ -81,9 +87,11 @@ class SlotTagger(LightningModule):
             for sen_tags, sen_len, in zip(y, length)
         ])
         loss = self.loss(input=flatten_output, target=flatten_y)
-        acc = self.acc(pred=flatten_output, target=flatten_y)
+        token_acc = self.token_acc(pred=flatten_output, target=flatten_y)
+        join_acc = self.join_acc(pred=output, target=y, length=length)
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        self.log("train_acc", acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log("train_token_acc", token_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log("train_join_acc", join_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         # tensorboard_logs = {'acc': {'train': acc }, 'loss':{'train': loss.detach() } }
         return loss
 
@@ -99,9 +107,11 @@ class SlotTagger(LightningModule):
             for sen_tags, sen_len, in zip(y, length)
         ])
         loss = self.loss(input=flatten_output, target=flatten_y)
-        acc = self.acc(pred=flatten_output, target=flatten_y)
+        token_acc = self.token_acc(pred=flatten_output, target=flatten_y)
+        join_acc = self.join_acc(pred=output, target=y, length=length)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        self.log("val_acc", acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log("val_token_acc", token_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log("val_join_acc", join_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         # tensorboard_logs = {'acc': {'val': acc }, 'loss':{'val': loss.detach() } }
         return loss
 

@@ -35,7 +35,7 @@ def train(args: Namespace) -> None:
     # Train the model
     early_stopping = EarlyStoppingWarmup(
         warmup=10,
-        monitor="val_acc",
+        monitor="val_join_acc",
         mode="max",
         min_delta=0,
         patience=5,
@@ -43,10 +43,10 @@ def train(args: Namespace) -> None:
     )
 
     checkpoint_callback = ModelCheckpoint(
-        monitor="val_acc",
+        monitor="val_join_acc",
         mode="max",
         dirpath=args.ckpt_dir,
-        filename="slot-{epoch:02d}-{val_acc:.2f}-{val_loss:.2f}",
+        filename="slot-{epoch:02d}-{val_join_acc:.2f}-{val_token_acc:.2f}-{val_loss:.2f}",
         save_top_k=1,
         save_on_train_epoch_end=False
     )
