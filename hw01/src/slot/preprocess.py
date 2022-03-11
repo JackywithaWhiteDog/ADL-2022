@@ -3,7 +3,7 @@ from collections import Counter
 from pathlib import Path
 
 from src import logger
-from src.utils.preprocess import build_index, build_vocab, build_embedding
+from src.utils.preprocess import build_index, build_vocab, build_embedding, get_glove
 
 def preprocess(
     data_dir: Path,
@@ -31,6 +31,15 @@ def preprocess(
     if vocab_size <= 0:
         vocab_size = None
     common_words = {w for w, _ in words.most_common(vocab_size)}
+    glove = get_glove(
+        glove_path=glove_path,
+        common_words=common_words
+    )
+    common_words = {
+        word
+        for word in common_words
+        if word in glove
+    }
 
     tag_idx_path = output_dir / "tag2idx.json"
     build_index(targets=tags, output_file=tag_idx_path)
@@ -44,5 +53,6 @@ def preprocess(
         common_words=common_words,
         vocab_size=vocab_size,
         glove_path=glove_path,
-        output_dir=output_dir
+        output_dir=output_dir,
+        glove=glove
     )

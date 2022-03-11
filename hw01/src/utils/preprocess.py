@@ -3,7 +3,7 @@ from pathlib import Path
 import pickle
 from random import random
 import re
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import torch
 from tqdm.auto import tqdm
@@ -31,13 +31,10 @@ def build_vocab(
     logger.info(f"Vocab saved at {str(vocab_path.resolve())}")
     return vocab
 
-def build_embedding(
-    vocab: Vocab,
-    common_words: set,
-    vocab_size: int,
+def get_glove(
     glove_path: Path,
-    output_dir: Path
-) -> None:
+    common_words: set,
+) -> Dict[str, List[float]]:
     glove: Dict[str, List[float]] = {}
     logger.info(f"Loading glove: {str(glove_path.resolve())}")
     with open(glove_path, "r") as f:
@@ -60,8 +57,23 @@ def build_embedding(
             glove_dim = len(vector)
 
     assert len(glove) > 0
-    assert vocab_size is None or len(glove) <= vocab_size
     assert all(len(v) == glove_dim for v in glove.values())
+    return glove
+
+def build_embedding(
+    vocab: Vocab,
+    common_words: set,
+    vocab_size: Optional[int],
+    glove_path: Optional[Path],
+    output_dir: Path,
+    glove: Optional[Dict[str, List[float]]]=None,
+) -> None:
+    if glove is None:
+        glove = get_glove(glove_path, common_words)
+    
+    glove_dim = len(next(iter(glove.values())))
+
+    assert vocab_size is None or len(glove) <= vocab_size
 
     num_tokens = len(vocab.tokens)
     num_matched = sum([token in glove for token in vocab.tokens])
