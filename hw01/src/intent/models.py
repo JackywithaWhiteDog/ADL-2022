@@ -64,9 +64,18 @@ class IntentClassifier(LightningModule):
 
         if self.bidirectional:
             forward_features, backward_features = torch.chunk(output_features, 2, dim=2)
-            last_features = torch.cat((forward_features[:, -1, :], backward_features[:, 0, :]), dim=1)
+            # last_features = torch.cat((forward_features[:, -1, :], backward_features[:, 0, :]), dim=1)
+            last_forward_features = torch.vstack([
+                feature[sen_len-1, :]
+                for feature, sen_len in zip(forward_features, length)
+            ])
+            last_features = torch.cat((last_forward_features, backward_features[:, 0, :]), dim=1)
         else:
-            last_features = output_features[:, -1, :]
+            # last_features = output_features[:, -1, :]
+            last_features = torch.vstack([
+                feature[sen_len-1, :]
+                for feature, sen_len in zip(output_features, length)
+            ])
 
         output = self.fc(last_features)
         return output
