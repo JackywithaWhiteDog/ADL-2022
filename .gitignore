@@ -9,3 +9,7 @@ data/
 cache/
 ckpt/
 pred/
+
+# Report
+*.docx
+*.tmp
