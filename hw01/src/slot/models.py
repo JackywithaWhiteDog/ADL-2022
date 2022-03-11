@@ -73,7 +73,7 @@ class SlotTagger(LightningModule):
         return output
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay, amsgrad=True)
+        return torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay, amsgrad=False)
 
     def training_step(self, batch, batch_idx):
         x, length, y = batch

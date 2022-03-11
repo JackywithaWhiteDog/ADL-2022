@@ -35,7 +35,7 @@ def train(args: Namespace) -> None:
     # Train the model
     early_stopping = EarlyStoppingWarmup(
         warmup=10,
-        monitor="val_join_acc",
+        monitor="val_token_acc",
         mode="max",
         min_delta=0,
         patience=5,
