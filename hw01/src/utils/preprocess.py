@@ -37,7 +37,7 @@ def get_glove(
 ) -> Dict[str, List[float]]:
     glove: Dict[str, List[float]] = {}
     logger.info(f"Loading glove: {str(glove_path.resolve())}")
-    with open(glove_path, "r") as f:
+    with open(glove_path, "r", encoding="utf-8") as f:
         row1 = f.readline()
         # if the first row is not header
         if not re.match("^[0-9]+ [0-9]+$", row1):
