@@ -3,5 +3,5 @@
 python intent_test.py \
     --test_file "${1}" \
     --pred_file "${2}" \
-    --ckpt_path ckpt/intent/20220310_1111/intent-epoch=10-val_acc=0.92-val_loss=0.46.ckpt \
-    --device cuda:7
+    --ckpt_path ckpt/intent/intent-best.ckpt \
+    --device cuda
