@@ -10,6 +10,9 @@ cache/
 ckpt/
 pred/
 
+# Uploaded file
+upload/
+
 # Report
 *.docx
 *.tmp
