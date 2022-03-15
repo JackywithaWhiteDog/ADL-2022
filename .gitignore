@@ -12,6 +12,7 @@ pred/
 
 # Uploaded file
 upload/
+*.zip
 
 # Report
 *.docx

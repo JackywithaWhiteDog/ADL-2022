@@ -1,4 +1,5 @@
-if [ ! -f glove.840B.300d.txt ]; then
-  wget http://nlp.stanford.edu/data/glove.840B.300d.zip -O glove.840B.300d.zip
-  unzip glove.840B.300d.zip
-fi
+#!bin/bash
+
+FILE_NAME=hw01.zip
+wget https://www.dropbox.com/s/1tod1tch25ysd84/hw01.zip?dl=1 -O $FILE_NAME
+unzip $FILE_NAME
