@@ -34,7 +34,7 @@ class SlotTagger(LightningModule):
         self.fc = nn.Sequential(
             nn.Dropout(dropout),
             nn.Linear(self.fc_hidden_size, self.fc_hidden_size),
-            nn.PReLU(),
+            nn.ELU(),
             nn.Dropout(dropout),
             nn.Linear(self.fc_hidden_size, num_class),
         )

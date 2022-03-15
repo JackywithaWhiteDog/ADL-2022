@@ -34,7 +34,7 @@ class IntentClassifier(LightningModule):
         self.fc = nn.Sequential(
             nn.Dropout(dropout),
             nn.Linear(fc_hidden_size, fc_hidden_size),
-            nn.PReLU(),
+            nn.ELU(),
             nn.Dropout(dropout),
             nn.Linear(fc_hidden_size, num_class),
         )

@@ -35,8 +35,8 @@ def train(args: Namespace) -> None:
     # Train the model
     early_stopping = EarlyStoppingWarmup(
         warmup=10,
-        monitor="val_token_acc",
-        mode="max",
+        monitor="val_loss",
+        mode="min",
         min_delta=0,
         patience=5,
         check_on_train_epoch_end=False
@@ -60,7 +60,7 @@ def train(args: Namespace) -> None:
             deterministic=True,
             max_epochs=args.num_epoch,
             callbacks=[early_stopping, checkpoint_callback],
-            gradient_clip_val=1,
+            # gradient_clip_val=1,
             auto_lr_find=True,
             # profiler="simple"
         )
@@ -72,7 +72,7 @@ def train(args: Namespace) -> None:
             deterministic=True,
             max_epochs=args.num_epoch,
             callbacks=[early_stopping, checkpoint_callback],
-            gradient_clip_val=1,
+            # gradient_clip_val=1,
             auto_lr_find=True,
             # profiler="simple"
         )

@@ -39,7 +39,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--rand_seed", type=int, default=1123)
 
     # data
-    parser.add_argument("--max_len", type=int, default=64)
+    parser.add_argument("--max_len", type=int, default=-1)
 
     # model
     parser.add_argument("--hidden_size", type=int, default=128)
