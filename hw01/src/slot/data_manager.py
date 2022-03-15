@@ -41,7 +41,7 @@ class SlotDataManager(DataManager):
                 [self.tag2idx[tag] for tag in d["tags"]]
                 for d in raw_data
             ],
-            to_len=self.max_len,
+            max_len=self.max_len,
             padding=self.empty_tag_idx
         ))
         return x, ids, length, y

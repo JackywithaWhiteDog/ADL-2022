@@ -20,7 +20,7 @@ class DataManager:
         test_file: Optional[Path]=None,
     ) -> None:
         self.cache_dir = cache_dir
-        self.max_len = max_len if max_len > 0 else None
+        self.max_len = max_len
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.target = target
