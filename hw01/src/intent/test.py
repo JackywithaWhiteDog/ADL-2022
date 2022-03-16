@@ -22,12 +22,13 @@ def test(args: Namespace) -> None:
     model = IntentClassifier.load_from_checkpoint(args.ckpt_path)
 
     if args.device.type == "cpu":
-        trainer = Trainer(accelerator="cpu", deterministic=True)
+        trainer = Trainer(accelerator="cpu", deterministic=True, logger=False)
     else:
         trainer = Trainer(
             devices=[args.device.index] if args.device.index else 1,
             accelerator="gpu",
             deterministic=True,
+            logger=False,
         )
 
     pred = trainer.predict(model, test_dataloader, return_predictions=True)
