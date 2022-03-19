@@ -108,3 +108,42 @@ class IntentClassifier(LightningModule):
         output = self(x, length)
         pred = output.argmax(dim=1)
         return pred
+
+class IntentClassifier_CNN_BiLSTM(IntentClassifier):
+    def __init__(
+        self,
+        cnn_out_channels: int=256,
+        cnn_kernel_size: int=1,
+        pool_size: int=4,
+        **kwargs
+    ):
+        kwargs['bidirectional'] = True
+        super(IntentClassifier_CNN_BiLSTM, self).__init__(**kwargs)
+        self.cnn = nn.Sequential(
+            nn.Conv1d(
+                in_channels=self.embedding.embedding_dim,
+                out_channels=cnn_out_channels,
+                kernel_size=cnn_kernel_size,
+            ),
+            nn.ELU(),
+            nn.MaxPool1d(kernel_size=pool_size)
+        )
+        self.rnn = nn.LSTM(
+            input_size=cnn_out_channels,
+            hidden_size=kwargs.get('hidden_size'),
+            num_layers=kwargs.get('num_layers'),
+            dropout=kwargs.get('dropout'),
+            bidirectional=True,
+            batch_first=True
+        )
+
+    def forward(self, x: Tensor, length: Tensor) -> Tensor:
+        embeddings = self.embedding(x)
+        cnn_output = self.cnn(embeddings.transpose(1,2))
+        output_features, _ = self.rnn(cnn_output.transpose(1,2))
+
+        forward_features, backward_features = torch.chunk(output_features, 2, dim=2)
+        last_features = torch.cat((forward_features[:, -1, :], backward_features[:, 0, :]), dim=1)
+
+        output = self.fc(last_features)
+        return output
