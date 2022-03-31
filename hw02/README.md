@@ -12,6 +12,12 @@ pip install -r ./requirements.txt
 
 ## Training
 
+### Multiple choice
+
+```shell
+bash multi_train.sh
+```
+
 ## Testing
 
 ### Download
