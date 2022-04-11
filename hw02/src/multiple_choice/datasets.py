@@ -18,7 +18,9 @@ def parse_data(data: List[Dict[str, Any]], context: List[str]) -> List[Dict[str,
                 context[para]
                 for para in d["paragraphs"]
             ],
-            "label": d["paragraphs"].index(d["relevant"])
+            **({
+                "label": d["paragraphs"].index(d["relevant"])
+            } if "relevant" in d else {})
         }
         for d in data
     ]
