@@ -1,6 +1,6 @@
 #!bin/bash
 
-export CUDA_VISIBLE_DEVICES="7"
+export CUDA_VISIBLE_DEVICES="4"
 
 python qa_train.py \
   --model_name_or_path hfl/chinese-roberta-wwm-ext \
@@ -14,8 +14,9 @@ python qa_train.py \
   --logging_steps 1000 \
   --evaluation_strategy steps \
   --eval_steps 3000 \
-  --save_steps 10000 \
-  --output_dir ./tmp/qa_roberta_batch8_lr2_384 \
+  --save_strategy epoch \
+  --save_total_limit 1 \
+  --output_dir ./ckpt/qa/roberta_new \
   --overwrite_output \
   --cache_dir ./cache \
   --train_file ./data/train.json \
