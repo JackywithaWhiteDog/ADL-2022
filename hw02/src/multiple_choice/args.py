@@ -35,6 +35,10 @@ class ModelArguments:
             "with private models)."
         },
     )
+    no_pretrained: bool = field(
+        default=False,
+        metadata={"help": "Not using pretrained weight"}
+    )
 
 
 @dataclass

@@ -81,6 +81,8 @@ def main():
                 "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
             )
 
+    logger.info(f"No pretrained: {model_args.no_pretrained}")
+
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
@@ -107,14 +109,17 @@ def main():
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
     )
-    model = AutoModelForMultipleChoice.from_pretrained(
-        model_args.model_name_or_path,
-        from_tf=bool(".ckpt" in model_args.model_name_or_path),
-        config=config,
-        cache_dir=model_args.cache_dir,
-        revision=model_args.model_revision,
-        use_auth_token=True if model_args.use_auth_token else None,
-    )
+    if not model_args.no_pretrained:
+        model = AutoModelForMultipleChoice.from_pretrained(
+            model_args.model_name_or_path,
+            from_tf=bool(".ckpt" in model_args.model_name_or_path),
+            config=config,
+            cache_dir=model_args.cache_dir,
+            revision=model_args.model_revision,
+            use_auth_token=True if model_args.use_auth_token else None,
+        )
+    else:
+        model = AutoModelForMultipleChoice.from_config(config)
 
     if data_args.max_seq_length is None:
         max_seq_length = tokenizer.model_max_length
