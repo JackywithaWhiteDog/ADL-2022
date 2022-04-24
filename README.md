@@ -20,6 +20,7 @@ Intent classification and Slot tagging
 Chinese Question Answering
 
 - [Problem Description](https://docs.google.com/presentation/d/1eonDCBNEqbvAEGKqPWt3Ew1JjVlBYXX45G2Hqs7c0Hk/edit?usp=sharing)
+- [Source Code](https://github.com/JackywithaWhiteDog/ADL-2022/tree/main/hw01)
 - [Kaggle for Chinese Question Answering](https://www.kaggle.com/competitions/ntu-adl-hw2-spring-2021)
   - Public Score: 0.78571 (65/172)
   - Private Score: 0.78410 (79/172)
