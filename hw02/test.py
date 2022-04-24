@@ -134,7 +134,7 @@ def main():
     multi_pred = multi_trainer.predict(test_dataset=test_dataset)
     relevant_ids = multi_pred.predictions.argmax(axis=1)
     if multi_pred.label_ids is not None:
-        logger.info(f"Multiple Choice Accuracy: {(relevant_ids == multi_pred.label_ids).mean():.2f}")
+        logger.info(f"Multiple Choice Accuracy: {(relevant_ids == multi_pred.label_ids).mean():.3f}")
     else:
         logger.info(relevant_ids)
 
@@ -207,7 +207,7 @@ def main():
 
     qa_pred = qa_trainer.predict(predict_dataset=test_dataset, predict_examples=test_examples)
     if qa_pred.label_ids is not None:
-        logger.info(f"QA Accuracy: {sum(pred['prediction_text'] == label['answers']['text'][0] for pred, label in zip(qa_pred.predictions, qa_pred.label_ids)) / len(test_examples):.2f}")
+        logger.info(f"QA Accuracy: {sum(pred['prediction_text'] == label['answers']['text'][0] for pred, label in zip(qa_pred.predictions, qa_pred.label_ids)) / len(test_examples):.3f}")
 
     result = [
         {
