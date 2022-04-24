@@ -1,6 +1,6 @@
 #!bin/bash
 
-export CUDA_VISIBLE_DEVICES="4"
+# export CUDA_VISIBLE_DEVICES="4"
 
 # "${1}": path to the context file.
 # "${2}": path to the testing file.

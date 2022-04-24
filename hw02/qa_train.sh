@@ -1,6 +1,6 @@
 #!bin/bash
 
-export CUDA_VISIBLE_DEVICES="4"
+# export CUDA_VISIBLE_DEVICES="4"
 
 python3.8 qa_train.py \
   --model_name_or_path hfl/chinese-roberta-wwm-ext \

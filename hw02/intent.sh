@@ -1,6 +1,6 @@
 #!bin/bash
 
-export CUDA_VISIBLE_DEVICES="4"
+# export CUDA_VISIBLE_DEVICES="4"
 
 python3.8 intent.py \
   --model_name_or_path bert-base-cased \

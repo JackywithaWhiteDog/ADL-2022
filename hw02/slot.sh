@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export CUDA_VISIBLE_DEVICES="4"
+# export CUDA_VISIBLE_DEVICES="4"
 
 python3.8 slot.py \
   --model_name_or_path ./ckpt/slot/checkpoint-2718 \
