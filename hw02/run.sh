@@ -6,7 +6,7 @@ export CUDA_VISIBLE_DEVICES="4"
 # "${2}": path to the testing file.
 # "${3}": path to the output predictions.
 
-python ./test.py \
+python3.8 ./test.py \
   --multi_model ./ckpt/multiple_choice \
   --qa_model ./ckpt/qa \
   --per_device_eval_batch_size 32 \
@@ -20,7 +20,7 @@ python ./test.py \
   --context_file "${1}" \
   --output_file "${3}"
 
-# python ./test.py \
+# python3.8 ./test.py \
 #   --multi_model ./ckpt/multiple_choice/roberta/checkpoint-4071 \
 #   --qa_model ./ckpt/qa/roberta_new/checkpoint-38240 \
 #   --per_device_eval_batch_size 32 \
@@ -34,7 +34,7 @@ python ./test.py \
 #   --context_file ./data/context.json \
 #   --output_file ./pred/valid_prediction.csv
 
-# python ./test.py \
+# python3.8 ./test.py \
 #   --multi_model ./ckpt/multiple_choice/albert-tiny/checkpoint-4071 \
 #   --qa_model ./ckpt/qa/roberta_new/checkpoint-38240 \
 #   --per_device_eval_batch_size 32 \
@@ -48,7 +48,7 @@ python ./test.py \
 #   --context_file ./data/context.json \
 #   --output_file ./pred/valid_prediction.csv
 
-# python ./test.py \
+# python3.8 ./test.py \
 #   --multi_model ./ckpt/multiple_choice/roberta_no_pretrained/checkpoint-4071 \
 #   --qa_model ./ckpt/qa/roberta_new/checkpoint-38240 \
 #   --per_device_eval_batch_size 32 \
@@ -62,7 +62,7 @@ python ./test.py \
 #   --context_file ./data/context.json \
 #   --output_file ./pred/valid_prediction.csv
 
-# python ./test.py \
+# python3.8 ./test.py \
 #   --multi_model ./ckpt/multiple_choice/roberta/checkpoint-4071 \
 #   --qa_model ./ckpt/qa/roberta_512/checkpoint-27680 \
 #   --per_device_eval_batch_size 32 \

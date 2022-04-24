@@ -14,8 +14,10 @@
 
 export CUDA_VISIBLE_DEVICES="4"
 
-python slot.py \
+python3.8 slot.py \
   --model_name_or_path ./ckpt/slot/checkpoint-2718 \
+  --do_train \
+  --do_eval \
   --do_predict \
   --overwrite_output_dir \
   --logging_steps 500 \
@@ -29,8 +31,3 @@ python slot.py \
   --test_file ./data/slot/test.json \
   --label_column_name tags \
   --output_dir ./ckpt/slot
-
-  # --test_file ./data/slot/test.json \
-
-  # --do_train \
-  # --do_eval \
