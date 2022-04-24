@@ -14,8 +14,18 @@ pip install -r ./requirements.txt
 
 ### Multiple choice
 
+Train the multiple choice model with default setting
+
 ```shell
-bash multi_train.sh
+bash ./multi_train.sh
+```
+
+### Question answering
+
+Train the question answering model with default setting
+
+```shell
+bash ./qa_train.sh
 ```
 
 ## Testing
@@ -29,3 +39,33 @@ bash ./download.sh
 ```
 
 ### Predicting
+
+Apply the inference to the testing file
+
+```shell
+bash ./run.sh /path/to/context.json /path/to/test.json  /path/to/pred/prediction.csv
+```
+
+## BERT for HW01
+
+### Intent classification
+
+Train the intent classification model, evaluate with the validation set, and apply to the testing file with default setting
+
+```shell
+bash ./intent.sh
+```
+
+### Slot tagging
+
+To run the slot tagging task, install [seqeval](https://pypi.org/project/seqeval/) library.
+
+```
+pip install seqeval==1.2.2
+```
+
+Train the slot tagging model, evaluate with the validation set, and apply to the testing file with default setting
+
+```shell
+bash ./slot.sh
+```
