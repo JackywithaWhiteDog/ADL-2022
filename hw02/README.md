@@ -43,7 +43,7 @@ bash ./download.sh
 Apply the inference to the testing file
 
 ```shell
-bash ./run.sh /path/to/context.json /path/to/test.json  /path/to/pred/prediction.csv
+bash ./run.sh /path/to/context.json /path/to/test.json /path/to/pred/prediction.csv
 ```
 
 ## BERT for HW01
