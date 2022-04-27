@@ -1,0 +1,11 @@
+# requirements
+--find-links https://download.pytorch.org/whl/cu113/torch_stable.html
+
+torch==1.10.1+cu113
+tqdm
+transformers
+accelerate==0.6.2
+datasets==2.0.0
+sentencepiece
+nltk
+numpy
