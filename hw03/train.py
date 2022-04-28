@@ -633,12 +633,12 @@ def main():
                 metric.add_batch(predictions=decoded_preds, references=decoded_labels)
         result = metric.compute()
 
+        result_list.append(result)
+
         # Extract f1 score from result
         result = {key: value["f"] * 100 for key, value in result.items()}
 
         result = {k: round(v, 4) for k, v in result.items()}
-
-        result_list.append(result)
 
         logger.info(result)
 
