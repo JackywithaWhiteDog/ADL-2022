@@ -31,3 +31,14 @@ Chinese Question Answering
   - [Kaggle for Slot Tagging](https://www.kaggle.com/c/slot-tagging-ntu-adl-hw1-spring-2022)
     - Public Score: 0.84557
     - Private Score: 0.84887
+
+## Homework 03 - mT5
+
+Chinese News Summarization (Title Generation)
+
+- [Problem Description](https://docs.google.com/presentation/d/11pV5rM4-pxy7Aam5wZwaXHDNIuFEthdhlEXNXLDuWxc/edit?usp=sharing)
+- [Source Code](https://github.com/JackywithaWhiteDog/ADL-2022/tree/main/hw03)
+- [Data & Evaluation](https://github.com/moooooser999/ADL22-HW3)
+  - ROUGE-1 F1 score: 0.287
+  - ROUGE-2 F1 score: 0.117
+  - ROUGE-l F1 score: 0.255

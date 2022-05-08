@@ -1,4 +1,4 @@
-# ADL NTU 110 Spring - Homework 2
+# ADL NTU 110 Spring - Homework 3
 
 ## Dependencies
 
@@ -16,6 +16,30 @@ To apply evaluation in validation phase, install [tw_rouge](https://github.com/J
 
 ```shell
 pip install -e tw_rouge
+```
+
+## Training
+
+Fine tune the mT5 model with default setting
+
+```shell
+bash ./train.sh
+```
+
+## Testing
+
+Download the models and the cache files.
+
+```shell
+bash ./download.sh
+```
+
+### Predicting
+
+Apply the inference to the testing file
+
+```shell
+bash ./run.sh /path/to/input.jsonl /path/to/output.jsonl
 ```
 
 ## Reference
