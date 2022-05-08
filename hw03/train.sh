@@ -1,8 +1,9 @@
 #!bin/bash
 
-export CUDA_VISIBLE_DEVICES="3"
+export CUDA_VISIBLE_DEVICES="7"
 
-python train.py \
+python ./main.py \
+    --do_train \
     --model_name_or_path google/mt5-small \
     --train_file ./data/train.jsonl \
     --validation_file ./data/public.jsonl \
@@ -16,4 +17,4 @@ python train.py \
     --gradient_accumulation_steps 1 \
     --num_train_epochs 10 \
     --source_prefix "summarize: " \
-    --output_dir ./ckpt/mt5_small_5e-4_8_new
+    --output_dir ./ckpt/new

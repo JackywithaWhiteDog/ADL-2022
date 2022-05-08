@@ -136,6 +136,9 @@ def parse_args():
         "--validation_file", type=str, default=None, help="A csv or a json file containing the validation data."
     )
     parser.add_argument(
+        "--test_file", type=str, default=None, help="A csv or a json file containing the test data."
+    )
+    parser.add_argument(
         "--ignore_pad_token_for_loss",
         type=bool,
         default=True,
@@ -188,13 +191,6 @@ def parse_args():
             "The maximum total input sequence length after tokenization. Sequences longer than this will be truncated,"
             " sequences shorter will be padded if `--pad_to_max_lengh` is passed."
         ),
-    )
-    parser.add_argument(
-        "--num_beams",
-        type=int,
-        default=None,
-        help="Number of beams to use for evaluation. This argument will be "
-        "passed to ``model.generate``, which is used during ``evaluate`` and ``predict``.",
     )
     parser.add_argument(
         "--pad_to_max_length",
@@ -294,11 +290,48 @@ def parse_args():
     parser.add_argument("--hub_token", type=str, help="The token to use to push to the Model Hub.")
     parser.add_argument("--fp16", action="store_true", help="Use fp16")
     parser.add_argument("--adafactor", action="store_true", help="Use Adafactor, if False use AdamW")
+
+    parser.add_argument("--do_train", action="store_true", help="Train the model")
+    parser.add_argument("--do_predict", action="store_true", help="Predict on the testing dataset")
+    parser.add_argument("--pred_file", type=str, default=None, help="Path to store prediction.")
+
+    # Generation Strategies
+    parser.add_argument(
+        "--do_sample",
+        action="store_true",
+        help="Whether or not to use sampling; use greedy decoding otherwise"
+    )
+    parser.add_argument(
+        "--num_beams",
+        type=int,
+        default=None,
+        help="Number of beams to use for evaluation. This argument will be "
+        "passed to ``model.generate``, which is used during ``evaluate`` and ``predict``.",
+    )
+    parser.add_argument(
+        "--top_k",
+        type=int,
+        default=50,
+        help="The number of highest probability vocabulary tokens to keep for top-k-filtering"
+    )
+    parser.add_argument(
+        "--top_p",
+        type=float,
+        default=1.0,
+        help="If set to float < 1, only the most probable tokens with probabilities that add up to top_p or higher are kept for generation"
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=1.0,
+        help="The value used to module the next token probabilities"
+    )
+
     args = parser.parse_args()
 
     # Sanity checks
-    if args.dataset_name is None and args.train_file is None and args.validation_file is None:
-        raise ValueError("Need either a dataset name or a training/validation file.")
+    if args.dataset_name is None and args.train_file is None and args.validation_file is None and args.test_file is None:
+        raise ValueError("Need either a dataset name or a training/validation/test file.")
     else:
         if args.train_file is not None:
             extension = args.train_file.split(".")[-1]
@@ -306,6 +339,9 @@ def parse_args():
         if args.validation_file is not None:
             extension = args.validation_file.split(".")[-1]
             assert extension in ["csv", "json", "jsonl"], "`validation_file` should be a csv, json, or jsonl file."
+        if args.test_file is not None:
+            extension = args.test_file.split(".")[-1]
+            assert extension in ["csv", "json", "jsonl"], "`test_file` should be a csv, json, or jsonl file."
 
     if args.push_to_hub:
         assert args.output_dir is not None, "Need an `output_dir` to create a repo when `--push_to_hub` is passed."
@@ -379,11 +415,16 @@ def main():
         raw_datasets = load_dataset(args.dataset_name, args.dataset_config_name)
     else:
         data_files = {}
+        extension = "json"
         if args.train_file is not None:
             data_files["train"] = args.train_file
+            extension = args.train_file.split(".")[-1]
         if args.validation_file is not None:
             data_files["validation"] = args.validation_file
-        extension = args.train_file.split(".")[-1]
+            extension = args.validation_file.split(".")[-1]
+        if args.test_file is not None:
+            data_files["test"] = args.test_file
+            extension = args.test_file.split(".")[-1]
         if extension == "jsonl": # jsonlines file
             extension = "json"
         raw_datasets = load_dataset(extension, data_files=data_files)
@@ -430,7 +471,10 @@ def main():
 
     # Preprocessing the datasets.
     # First we tokenize all the texts.
-    column_names = raw_datasets["train"].column_names
+    if args.do_train:
+        column_names = raw_datasets["train"].column_names
+    else:
+        column_names = raw_datasets["test"].column_names
 
     # Get the column names for input/target.
     dataset_columns = summarization_name_mapping.get(args.dataset_name, None)
@@ -446,10 +490,13 @@ def main():
         summary_column = dataset_columns[1] if dataset_columns is not None else column_names[1]
     else:
         summary_column = args.summary_column
-        if summary_column not in column_names:
+        if args.do_train and summary_column not in column_names:
             raise ValueError(
                 f"--summary_column' value '{args.summary_column}' needs to be one of: {', '.join(column_names)}"
             )
+
+    if args.do_predict:
+        args.has_summary = summary_column in raw_datasets["test"].column_names
 
     # Temporarily set max_target_length for training.
     max_target_length = args.max_target_length
@@ -457,10 +504,13 @@ def main():
 
     def preprocess_function(examples):
         inputs = examples[text_column]
-        targets = examples[summary_column]
         inputs = [prefix + inp for inp in inputs]
         model_inputs = tokenizer(inputs, max_length=args.max_source_length, padding=padding, truncation=True)
 
+        if summary_column in examples:
+            targets = examples[summary_column]
+        else:
+            targets = [""] * len(examples[text_column])
         # Setup the tokenizer for targets
         with tokenizer.as_target_tokenizer():
             labels = tokenizer(targets, max_length=max_target_length, padding=padding, truncation=True)
@@ -475,6 +525,8 @@ def main():
         model_inputs["labels"] = labels["input_ids"]
         return model_inputs
 
+    if args.do_predict:
+        test_indices = raw_datasets["test"]["id"]
     with accelerator.main_process_first():
         processed_datasets = raw_datasets.map(
             preprocess_function,
@@ -485,14 +537,18 @@ def main():
             desc="Running tokenizer on dataset",
         )
 
-    train_dataset = processed_datasets["train"]
-    # train_dataset = train_dataset.select(range(10)) # For debuging
-    eval_dataset = processed_datasets["validation"]
-    # eval_dataset = eval_dataset.select(range(10)) # For debuging
+    if args.do_train:
+        train_dataset = processed_datasets["train"]
+        # train_dataset = train_dataset.select(range(10)) # For debuging
+        eval_dataset = processed_datasets["validation"]
+        # eval_dataset = eval_dataset.select(range(10)) # For debuging
 
-    # Log a few random samples from the training set:
-    for index in random.sample(range(len(train_dataset)), 1):
-        logger.info(f"Sample {index} of the training set: {train_dataset[index]}.")
+        # Log a few random samples from the training set:
+        for index in random.sample(range(len(train_dataset)), 1):
+            logger.info(f"Sample {index} of the training set: {train_dataset[index]}.")
+
+    if args.do_predict:
+        test_dataset = processed_datasets["test"]
 
     label_pad_token_id = -100 if args.ignore_pad_token_for_loss else tokenizer.pad_token_id
     data_collator = DataCollatorForSeq2Seq(
@@ -502,96 +558,182 @@ def main():
         pad_to_multiple_of=8 if accelerator.use_fp16 else None,
     )
 
-    def postprocess_text(preds, labels):
-        preds = [pred.strip() for pred in preds]
-        labels = [label.strip() for label in labels]
-
+    def postprocess_text(preds, labels=None):
         # rougeLSum expects newline after each sentence
+        preds = [pred.strip() for pred in preds]
         preds = ["\n".join(nltk.sent_tokenize(pred)) for pred in preds]
-        labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
+        if labels is None:
+            return preds
 
+        labels = [label.strip() for label in labels]
+        labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
         return preds, labels
 
-    train_dataloader = DataLoader(
-        train_dataset, shuffle=True, collate_fn=data_collator, batch_size=args.per_device_train_batch_size
-    )
-    eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
+    if args.do_train:
+        train_dataloader = DataLoader(
+            train_dataset, shuffle=True, collate_fn=data_collator, batch_size=args.per_device_train_batch_size
+        )
+        eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
 
-    # Optimizer
-    # Split weights in two groups, one with weight decay and the other not.
-    no_decay = ["bias", "LayerNorm.weight"]
-    optimizer_grouped_parameters = [
-        {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-            "weight_decay": args.weight_decay,
-        },
-        {
-            "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-            "weight_decay": 0.0,
-        },
-    ]
-    if args.adafactor:
-        optimizer = Adafactor(optimizer_grouped_parameters, lr=args.learning_rate, relative_step=False)
-    else:
-        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
-
-    # Prepare everything with our `accelerator`.
-    model, optimizer, train_dataloader, eval_dataloader = accelerator.prepare(
-        model, optimizer, train_dataloader, eval_dataloader
-    )
-
-    # Note -> the training dataloader needs to be prepared before we grab his length below (cause its length will be
-    # shorter in multiprocess)
-
-    # Scheduler and math around the number of training steps.
-    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
-    if args.max_train_steps is None:
-        args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
-    else:
-        args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
-
-    lr_scheduler = get_scheduler(
-        name=args.lr_scheduler_type,
-        optimizer=optimizer,
-        num_warmup_steps=args.num_warmup_steps,
-        num_training_steps=args.max_train_steps,
-    )
+    if args.do_predict:
+        test_dataloader = DataLoader(test_dataset, shuffle=False, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
 
     # Metric
     metric = Rouge()
 
     # Train!
-    total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
+    if args.do_train:
+        # Optimizer
+        # Split weights in two groups, one with weight decay and the other not.
+        no_decay = ["bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": args.weight_decay,
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0,
+            },
+        ]
+        if args.adafactor:
+            optimizer = Adafactor(optimizer_grouped_parameters, lr=args.learning_rate, relative_step=False)
+        else:
+            optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
 
-    logger.info("***** Running training *****")
-    logger.info(f"  Num examples = {len(train_dataset)}")
-    logger.info(f"  Num Epochs = {args.num_train_epochs}")
-    logger.info(f"  Instantaneous batch size per device = {args.per_device_train_batch_size}")
-    logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
-    logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
-    logger.info(f"  Total optimization steps = {args.max_train_steps}")
-    # Only show the progress bar once on each machine.
-    progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
-    completed_steps = 0
+        # Scheduler and math around the number of training steps.
+        num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
+        if args.max_train_steps is None:
+            args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
+        else:
+            args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
 
-    result_list = []
+        lr_scheduler = get_scheduler(
+            name=args.lr_scheduler_type,
+            optimizer=optimizer,
+            num_warmup_steps=args.num_warmup_steps,
+            num_training_steps=args.max_train_steps,
+        )
 
-    for epoch in range(args.num_train_epochs):
-        model.train()
-        for step, batch in enumerate(train_dataloader):
-            outputs = model(**batch)
-            loss = outputs.loss
-            loss = loss / args.gradient_accumulation_steps
-            accelerator.backward(loss)
-            if step % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
-                optimizer.step()
-                lr_scheduler.step()
-                optimizer.zero_grad()
-                progress_bar.update(1)
-                completed_steps += 1
+        # Prepare everything with our `accelerator`.
+        model, optimizer, train_dataloader, eval_dataloader = accelerator.prepare(
+            model, optimizer, train_dataloader, eval_dataloader
+        )
 
-            if completed_steps >= args.max_train_steps:
-                break
+        # Note -> the training dataloader needs to be prepared before we grab his length below (cause its length will be
+        # shorter in multiprocess)
+
+        total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
+
+        logger.info("***** Running training *****")
+        logger.info(f"  Num examples = {len(train_dataset)}")
+        logger.info(f"  Num Epochs = {args.num_train_epochs}")
+        logger.info(f"  Instantaneous batch size per device = {args.per_device_train_batch_size}")
+        logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
+        logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
+        logger.info(f"  Total optimization steps = {args.max_train_steps}")
+        # Only show the progress bar once on each machine.
+        progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
+        completed_steps = 0
+
+        result_list = []
+
+        for epoch in range(args.num_train_epochs):
+            model.train()
+            for step, batch in enumerate(train_dataloader):
+                outputs = model(**batch)
+                loss = outputs.loss
+                loss = loss / args.gradient_accumulation_steps
+                accelerator.backward(loss)
+                if step % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
+                    optimizer.step()
+                    lr_scheduler.step()
+                    optimizer.zero_grad()
+                    progress_bar.update(1)
+                    completed_steps += 1
+
+                if completed_steps >= args.max_train_steps:
+                    break
+
+            model.eval()
+            if args.val_max_target_length is None:
+                args.val_max_target_length = args.max_target_length
+
+            gen_kwargs = {
+                "max_length": args.val_max_target_length if args is not None else config.max_length,
+                "do_sample": args.do_sample,
+                "num_beams": args.num_beams,
+                "top_k": args.top_k,
+                "top_p": args.top_p,
+                "temperature": args.temperature,
+            }
+            for step, batch in enumerate(tqdm(eval_dataloader, disable=not accelerator.is_local_main_process, leave=True)):
+                with torch.no_grad():
+                    generated_tokens = accelerator.unwrap_model(model).generate(
+                        batch["input_ids"],
+                        attention_mask=batch["attention_mask"],
+                        **gen_kwargs,
+                    )
+
+                    generated_tokens = accelerator.pad_across_processes(
+                        generated_tokens, dim=1, pad_index=tokenizer.pad_token_id
+                    )
+                    labels = batch["labels"]
+                    if not args.pad_to_max_length:
+                        # If we did not pad to max length, we need to pad the labels too
+                        labels = accelerator.pad_across_processes(batch["labels"], dim=1, pad_index=tokenizer.pad_token_id)
+
+                    generated_tokens = accelerator.gather(generated_tokens).cpu().numpy()
+                    labels = accelerator.gather(labels).cpu().numpy()
+
+                    if args.ignore_pad_token_for_loss:
+                        # Replace -100 in the labels as we can't decode them.
+                        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+                    if isinstance(generated_tokens, tuple):
+                        generated_tokens = generated_tokens[0]
+                    decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
+                    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+
+                    decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+
+                    metric.add_batch(predictions=decoded_preds, references=decoded_labels)
+            result = metric.compute()
+
+            result_list.append(result)
+
+            # Extract f1 score from result
+            result = {key: value["f"] * 100 for key, value in result.items()}
+
+            result = {k: round(v, 4) for k, v in result.items()}
+
+            logger.info(result)
+
+            if args.push_to_hub and epoch < args.num_train_epochs - 1:
+                accelerator.wait_for_everyone()
+                unwrapped_model = accelerator.unwrap_model(model)
+                unwrapped_model.save_pretrained(args.output_dir, save_function=accelerator.save)
+                if accelerator.is_main_process:
+                    tokenizer.save_pretrained(args.output_dir)
+                    repo.push_to_hub(
+                        commit_message=f"Training in progress epoch {epoch}", blocking=False, auto_lfs_prune=True
+                    )
+
+        if args.output_dir is not None:
+            accelerator.wait_for_everyone()
+            unwrapped_model = accelerator.unwrap_model(model)
+            unwrapped_model.save_pretrained(args.output_dir, save_function=accelerator.save)
+            if accelerator.is_main_process:
+                tokenizer.save_pretrained(args.output_dir)
+                if args.push_to_hub:
+                    repo.push_to_hub(commit_message="End of training", auto_lfs_prune=True)
+                with open(f"{args.output_dir}/results.json", "w") as f:
+                    json.dump(result_list, f, indent=2)
+
+    if args.do_predict:
+        # Prepare everything with our `accelerator`.
+        model, test_dataloader = accelerator.prepare(
+            model, test_dataloader
+        )
 
         model.eval()
         if args.val_max_target_length is None:
@@ -599,9 +741,14 @@ def main():
 
         gen_kwargs = {
             "max_length": args.val_max_target_length if args is not None else config.max_length,
+            "do_sample": args.do_sample,
             "num_beams": args.num_beams,
+            "top_k": args.top_k,
+            "top_p": args.top_p,
+            "temperature": args.temperature,
         }
-        for step, batch in enumerate(tqdm(eval_dataloader, disable=not accelerator.is_local_main_process, leave=True)):
+        pred = []
+        for step, batch in enumerate(tqdm(test_dataloader, disable=not accelerator.is_local_main_process, leave=True, desc="Do prediction")):
             with torch.no_grad():
                 generated_tokens = accelerator.unwrap_model(model).generate(
                     batch["input_ids"],
@@ -612,57 +759,40 @@ def main():
                 generated_tokens = accelerator.pad_across_processes(
                     generated_tokens, dim=1, pad_index=tokenizer.pad_token_id
                 )
-                labels = batch["labels"]
-                if not args.pad_to_max_length:
-                    # If we did not pad to max length, we need to pad the labels too
-                    labels = accelerator.pad_across_processes(batch["labels"], dim=1, pad_index=tokenizer.pad_token_id)
-
                 generated_tokens = accelerator.gather(generated_tokens).cpu().numpy()
-                labels = accelerator.gather(labels).cpu().numpy()
-
-                if args.ignore_pad_token_for_loss:
-                    # Replace -100 in the labels as we can't decode them.
-                    labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
                 if isinstance(generated_tokens, tuple):
                     generated_tokens = generated_tokens[0]
                 decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
-                decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
-                decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+                if args.has_summary:
+                    labels = batch["labels"]
+                    if not args.pad_to_max_length:
+                        # If we did not pad to max length, we need to pad the labels too
+                        labels = accelerator.pad_across_processes(batch["labels"], dim=1, pad_index=tokenizer.pad_token_id)
+                    labels = accelerator.gather(labels).cpu().numpy()
 
-                metric.add_batch(predictions=decoded_preds, references=decoded_labels)
-        result = metric.compute()
-
-        result_list.append(result)
-
-        # Extract f1 score from result
-        result = {key: value["f"] * 100 for key, value in result.items()}
-
-        result = {k: round(v, 4) for k, v in result.items()}
-
-        logger.info(result)
-
-        if args.push_to_hub and epoch < args.num_train_epochs - 1:
-            accelerator.wait_for_everyone()
-            unwrapped_model = accelerator.unwrap_model(model)
-            unwrapped_model.save_pretrained(args.output_dir, save_function=accelerator.save)
-            if accelerator.is_main_process:
-                tokenizer.save_pretrained(args.output_dir)
-                repo.push_to_hub(
-                    commit_message=f"Training in progress epoch {epoch}", blocking=False, auto_lfs_prune=True
-                )
-
-    if args.output_dir is not None:
-        accelerator.wait_for_everyone()
-        unwrapped_model = accelerator.unwrap_model(model)
-        unwrapped_model.save_pretrained(args.output_dir, save_function=accelerator.save)
-        if accelerator.is_main_process:
-            tokenizer.save_pretrained(args.output_dir)
-            if args.push_to_hub:
-                repo.push_to_hub(commit_message="End of training", auto_lfs_prune=True)
-            with open(f"{args.output_dir}/results.json", "w") as f:
-                json.dump(result_list, f, indent=2)
-
+                    if args.ignore_pad_token_for_loss:
+                        # Replace -100 in the labels as we can't decode them.
+                        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+                    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+                    decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+                    metric.add_batch(predictions=decoded_preds, references=decoded_labels)
+                else:
+                    decoded_preds = postprocess_text(decoded_preds)
+                pred.extend(decoded_preds)
+        if args.has_summary:
+            result = metric.compute()
+            logger.info(result)
+        args.pred_file = Path(args.pred_file)
+        args.pred_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(args.pred_file, "w") as f:
+            for idx, title in zip(test_indices, pred):
+                json.dump({
+                    "title": title,
+                    "id": idx
+                }, f)
+                f.write('\n')
+        logger.info("Completed")
 
 if __name__ == "__main__":
     main()
