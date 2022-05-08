@@ -2,7 +2,7 @@
 
 export CUDA_VISIBLE_DEVICES="7"
 
-python ./main.py \
+python3.8 ./main.py \
     --do_train \
     --model_name_or_path google/mt5-small \
     --train_file ./data/train.jsonl \
