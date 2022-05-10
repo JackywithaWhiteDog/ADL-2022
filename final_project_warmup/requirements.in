@@ -1,0 +1,8 @@
+# requirements
+--find-links https://download.pytorch.org/whl/cu113/torch_stable.html
+
+torch==1.10.1+cu113
+tqdm
+transformers
+datasets==2.0.0
+sacrebleu
