@@ -54,13 +54,11 @@ from transformers import (
     set_seed,
 )
 from transformers.utils import get_full_repo_name, is_offline_mode
-from transformers.utils.versions import require_version
 
 # https://github.com/JackywithaWhiteDog/ADL-2022/tree/main/hw03/tw_rouge
 from tw_rouge import get_rouge
 
 logger = logging.getLogger(__name__)
-require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/summarization/requirements.txt")
 
 # You should update this to your particular problem to have better documentation of `model_type`
 MODEL_CONFIG_CLASSES = list(MODEL_MAPPING.keys())
