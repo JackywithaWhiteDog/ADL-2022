@@ -7,7 +7,7 @@
 
 python3.8 ./main.py \
     --do_predict \
-    --model_name_or_path ./ckpt/mt5_small_5e-4_8 \
+    --model_name_or_path ./ckpt/mt5 \
     --max_source_length 256 \
     --max_target_length 64 \
     --num_beams 5 \
@@ -20,6 +20,22 @@ python3.8 ./main.py \
     --source_prefix "summarize: " \
     --test_file "${1}" \
     --pred_file "${2}"
+
+# python3.8 ./main.py \
+#     --do_predict \
+#     --model_name_or_path ./ckpt/mt5_rl \
+#     --max_source_length 256 \
+#     --max_target_length 64 \
+#     --num_beams 1 \
+#     --top_k 0 \
+#     --top_p 1 \
+#     --temperature 1 \
+#     --text_column maintext \
+#     --summary_column title \
+#     --per_device_eval_batch_size 64 \
+#     --source_prefix "summarize: " \
+#     --test_file "${1}" \
+#     --pred_file "${2}"
 
 # python ./main.py \
 #     --do_predict \

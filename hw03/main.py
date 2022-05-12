@@ -31,6 +31,7 @@ import datasets
 import nltk
 import numpy as np
 import torch
+from torch.nn import CrossEntropyLoss
 from datasets import load_dataset, load_metric, Metric, MetricInfo
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -113,7 +114,7 @@ class Rouge(Metric):
         """This method defines the common API for all the metrics in the library"""
         # print(f"predictions: {predictions}")
         # print(f"references: {references}")
-        return get_rouge(predictions, references)
+        return get_rouge(predictions, references, ignore_empty=True)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Finetune a transformers model on a summarization task")
@@ -322,6 +323,26 @@ def parse_args():
     )
     parser.add_argument(
         "--temperature",
+        type=float,
+        default=1.0,
+        help="The value used to module the next token probabilities"
+    )
+
+    parser.add_argument("--rl", action="store_true", help="Fine tune model by reinforcement learning")
+    parser.add_argument(
+        "--rl_top_k",
+        type=int,
+        default=0,
+        help="The number of highest probability vocabulary tokens to keep for top-k-filtering"
+    )
+    parser.add_argument(
+        "--rl_top_p",
+        type=float,
+        default=0.2,
+        help="If set to float < 1, only the most probable tokens with probabilities that add up to top_p or higher are kept for generation"
+    )
+    parser.add_argument(
+        "--rl_temperature",
         type=float,
         default=1.0,
         help="The value used to module the next token probabilities"
@@ -580,6 +601,26 @@ def main():
 
     # Metric
     metric = Rouge()
+    rl_metric = CrossEntropyLoss(reduction='none')
+
+    def generate_predictions(accelerator, model, tokenizer, batch, gen_kwargs, return_tokens=False):
+        generated_tokens = accelerator.unwrap_model(model).generate(
+            batch["input_ids"],
+            attention_mask=batch["attention_mask"],
+            **gen_kwargs,
+        )
+
+        generated_tokens = accelerator.pad_across_processes(
+            generated_tokens, dim=1, pad_index=tokenizer.pad_token_id
+        )
+        generated_tokens = accelerator.gather(generated_tokens).cpu().numpy()
+        if isinstance(generated_tokens, tuple):
+            generated_tokens = generated_tokens[0]
+        decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
+        if return_tokens:
+            return decoded_preds, generated_tokens
+        return decoded_preds
+
 
     # Train!
     if args.do_train:
@@ -632,25 +673,128 @@ def main():
         logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
         logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
         logger.info(f"  Total optimization steps = {args.max_train_steps}")
+        logger.info(f"  Use reinforcement learning = {args.rl}")
         # Only show the progress bar once on each machine.
         progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
         completed_steps = 0
 
-        result_list = []
+        logging_result = {
+            'loss': [],
+            'rouge': []
+        }
 
+        if args.val_max_target_length is None:
+            args.val_max_target_length = args.max_target_length
+
+        step_loss = 0
         for epoch in range(args.num_train_epochs):
             model.train()
+            epoch_loss = 0
+            epoch_steps = 0
             for step, batch in enumerate(train_dataloader):
                 outputs = model(**batch)
-                loss = outputs.loss
+                if not args.rl:
+                    loss = outputs.loss
+                else:
+                    with torch.no_grad():
+                        gen_kwargs_greedy = {
+                            "max_length": args.val_max_target_length if args is not None else config.max_length,
+                            "do_sample": False,
+                            "num_beams": 1,
+                            "top_k": 0,
+                            "top_p": 1,
+                            "temperature": 1,
+                        }
+                        decoded_preds_greedy = generate_predictions(accelerator, model, tokenizer, batch, gen_kwargs_greedy)
+
+                        gen_kwargs_sample = {
+                            "max_length": args.val_max_target_length if args is not None else config.max_length,
+                            "do_sample": True,
+                            "num_beams": 1,
+                            "top_k": args.rl_top_k,
+                            "top_p": args.rl_top_p,
+                            "temperature": args.rl_temperature,
+                        }
+                        decoded_preds_sample, sample_tokens = generate_predictions(accelerator, model, tokenizer, batch, gen_kwargs_sample, return_tokens=True)
+
+                        labels = batch["labels"]
+                        if not args.pad_to_max_length:
+                            # If we did not pad to max length, we need to pad the labels too
+                            labels = accelerator.pad_across_processes(batch["labels"], dim=1, pad_index=tokenizer.pad_token_id)
+                        labels = accelerator.gather(labels).cpu().numpy()
+
+                        if args.ignore_pad_token_for_loss:
+                            # Replace -100 in the labels as we can't decode them.
+                            labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+
+                        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+
+                        decoded_preds_greedy, decoded_labels = postprocess_text(decoded_preds_greedy, decoded_labels)
+                        decoded_preds_sample = postprocess_text(decoded_preds_sample)
+
+                        indices = [
+                            i
+                            for i, (g, s) in enumerate(zip(decoded_preds_greedy, decoded_preds_sample))
+                            if len(g) > 0 and len(s) > 0
+                        ]
+
+                        decoded_labels = [decoded_labels[i] for i in indices]
+                        decoded_preds_greedy = [decoded_preds_greedy[i] for i in indices]
+                        decoded_preds_sample = [decoded_preds_sample[i] for i in indices]
+
+                        greedy_scores = get_rouge(decoded_preds_greedy, decoded_labels, avg=False, ignore_empty=False)
+                        sample_scores = get_rouge(decoded_preds_sample, decoded_labels, avg=False, ignore_empty=False)
+
+                        score_weights = {
+                            'rouge-1': {'f': 1.0 / 0.271},
+                            'rouge-2': {'f': 1.0 / 0.102},
+                            'rouge-l': {'f': 1.0 / 0.241}
+                        }
+                        num_scores = len([
+                            0
+                            for rouge, critic in score_weights.items()
+                            for critic_name, weight in critic.items()
+                        ])
+                        greedy_rewards = torch.Tensor([
+                            sum(
+                                score[rouge][critic_name] * weight
+                                for rouge, critic in score_weights.items()
+                                for critic_name, weight in critic.items()
+                            ) / num_scores
+                            for score in greedy_scores
+                        ])
+                        sample_rewards = torch.Tensor([
+                            sum(
+                                score[rouge][critic_name] * weight
+                                for rouge, critic in score_weights.items()
+                                for critic_name, weight in critic.items()
+                            ) / num_scores
+                            for score in sample_scores
+                        ])
+
+                    logits = outputs.logits
+                    length = min(sample_tokens.shape[1], logits.shape[1])
+                    logits = logits[indices, :length, :].reshape(-1, logits.shape[-1])
+                    sample_tokens = torch.Tensor(sample_tokens)[indices, :length].reshape(-1).long().to(logits.device)
+                    ce_loss = rl_metric(logits, sample_tokens)
+                    rewards = (sample_rewards - greedy_rewards).reshape(-1, 1).to(ce_loss.device)
+                    ce_loss = ce_loss.reshape(rewards.shape[0], -1)
+                    loss = (ce_loss * rewards).mean()
                 loss = loss / args.gradient_accumulation_steps
                 accelerator.backward(loss)
+                step_loss += loss.item()
                 if step % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
+                    epoch_loss = epoch_loss * epoch_steps + step_loss
+                    epoch_steps += 1
+                    epoch_loss /= epoch_steps
                     optimizer.step()
                     lr_scheduler.step()
                     optimizer.zero_grad()
                     progress_bar.update(1)
+                    progress_bar.set_description(f"Epoch [{epoch+1}/{args.num_train_epochs}] Total Loss: {epoch_loss:.3f} (Current Step: {step_loss:.3f})")
                     completed_steps += 1
+                    logging_result['loss'].append(step_loss)
+                    step_loss = 0
 
                 if completed_steps >= args.max_train_steps:
                     break
@@ -669,29 +813,18 @@ def main():
             }
             for step, batch in enumerate(tqdm(eval_dataloader, disable=not accelerator.is_local_main_process, leave=True)):
                 with torch.no_grad():
-                    generated_tokens = accelerator.unwrap_model(model).generate(
-                        batch["input_ids"],
-                        attention_mask=batch["attention_mask"],
-                        **gen_kwargs,
-                    )
+                    decoded_preds = generate_predictions(accelerator, model, tokenizer, batch, gen_kwargs)
 
-                    generated_tokens = accelerator.pad_across_processes(
-                        generated_tokens, dim=1, pad_index=tokenizer.pad_token_id
-                    )
                     labels = batch["labels"]
                     if not args.pad_to_max_length:
                         # If we did not pad to max length, we need to pad the labels too
                         labels = accelerator.pad_across_processes(batch["labels"], dim=1, pad_index=tokenizer.pad_token_id)
-
-                    generated_tokens = accelerator.gather(generated_tokens).cpu().numpy()
                     labels = accelerator.gather(labels).cpu().numpy()
 
                     if args.ignore_pad_token_for_loss:
                         # Replace -100 in the labels as we can't decode them.
                         labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-                    if isinstance(generated_tokens, tuple):
-                        generated_tokens = generated_tokens[0]
-                    decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
+
                     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
                     decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
@@ -699,7 +832,7 @@ def main():
                     metric.add_batch(predictions=decoded_preds, references=decoded_labels)
             result = metric.compute()
 
-            result_list.append(result)
+            logging_result['rouge'].append(result)
 
             # Extract f1 score from result
             result = {key: value["f"] * 100 for key, value in result.items()}
@@ -727,7 +860,7 @@ def main():
                 if args.push_to_hub:
                     repo.push_to_hub(commit_message="End of training", auto_lfs_prune=True)
                 with open(f"{args.output_dir}/results.json", "w") as f:
-                    json.dump(result_list, f, indent=2)
+                    json.dump(logging_result, f, indent=2)
 
     if args.do_predict:
         # Prepare everything with our `accelerator`.
@@ -750,19 +883,7 @@ def main():
         pred = []
         for step, batch in enumerate(tqdm(test_dataloader, disable=not accelerator.is_local_main_process, leave=True, desc="Do prediction")):
             with torch.no_grad():
-                generated_tokens = accelerator.unwrap_model(model).generate(
-                    batch["input_ids"],
-                    attention_mask=batch["attention_mask"],
-                    **gen_kwargs,
-                )
-
-                generated_tokens = accelerator.pad_across_processes(
-                    generated_tokens, dim=1, pad_index=tokenizer.pad_token_id
-                )
-                generated_tokens = accelerator.gather(generated_tokens).cpu().numpy()
-                if isinstance(generated_tokens, tuple):
-                    generated_tokens = generated_tokens[0]
-                decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
+                decoded_preds = generate_predictions(accelerator, model, tokenizer, batch, gen_kwargs)
 
                 if args.has_summary:
                     labels = batch["labels"]
