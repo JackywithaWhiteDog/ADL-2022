@@ -26,6 +26,12 @@ Fine tune the mT5 model with default setting
 bash ./train.sh
 ```
 
+Fine tune the supervised-learning model by RL with default setting
+
+```shell
+bash ./train_rl.sh
+```
+
 ## Testing
 
 Download the models and the cache files.
