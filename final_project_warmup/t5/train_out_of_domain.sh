@@ -6,6 +6,7 @@ SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
 # {'bleu': 6.510484395182762} 48.718788146972656
 # python3.8 $SCRIPT_DIR/train.py \
+#     --do_train \
 #     --dataset_root ./data \
 #     --domain out_of_domain \
 #     --model_name_or_path t5-small \

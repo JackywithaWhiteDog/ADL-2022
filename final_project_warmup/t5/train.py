@@ -103,6 +103,13 @@ def parse_args():
 
     # Generation Strategies
     parser.add_argument(
+        "--do_train",
+        action="store_true",
+        help="Whether or not to train the model; only inference otherwise"
+    )
+
+    # Generation Strategies
+    parser.add_argument(
         "--do_sample",
         action="store_true",
         help="Whether or not to use sampling; use greedy decoding otherwise"
@@ -206,16 +213,16 @@ if __name__ == "__main__":
         # compute_metrics=compute_metrics,
     )
 
-    train_result = trainer.train()
-    trainer.save_model()
-    metrics = train_result.metrics
-    metrics["train_samples"] = len(train_dataset)
+    if args.do_train:
+        train_result = trainer.train()
+        trainer.save_model()
+        metrics = train_result.metrics
+        metrics["train_samples"] = len(train_dataset)
 
-    trainer.log_metrics("train", metrics)
-    trainer.save_metrics("train", metrics)
-    trainer.save_state()
+        trainer.log_metrics("train", metrics)
+        trainer.save_metrics("train", metrics)
+        trainer.save_state()
 
-  
     # test
     model.to('cpu')
     inputs = tokenizer(test_dataset['inputs'], return_tensors="pt", padding=True)

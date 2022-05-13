@@ -51,6 +51,7 @@ python3.8 ./perplexity.py \
 
 # {'bleu': 3.3162845356325743} 50.84589385986328
 # python3.8 $SCRIPT_DIR/train.py \
+#     --do_train \
 #     --dataset_root ./data \
 #     --domain in_domain \
 #     --model_name_or_path t5-small \
@@ -61,6 +62,7 @@ python3.8 ./perplexity.py \
 
 # {'bleu': 3.7732790685864552} 47.3178825378418
 # python3.8 $SCRIPT_DIR/train.py \
+#     --do_train \
 #     --dataset_root ./data \
 #     --domain in_domain \
 #     --model_name_or_path t5-small \
