@@ -1,6 +1,6 @@
 #!bin/bash
 
-export CUDA_VISIBLE_DEVICES="6"
+# export CUDA_VISIBLE_DEVICES="6"
 
 python3.8 ./main.py \
     --do_train \

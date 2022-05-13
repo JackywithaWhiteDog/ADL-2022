@@ -1,6 +1,6 @@
 #!bin/bash
 
-export CUDA_VISIBLE_DEVICES="7"
+# export CUDA_VISIBLE_DEVICES="7"
 
 python3.8 ./main.py \
     --do_train \
@@ -17,4 +17,4 @@ python3.8 ./main.py \
     --gradient_accumulation_steps 1 \
     --num_train_epochs 10 \
     --source_prefix "summarize: " \
-    --output_dir ./ckpt/new
+    --output_dir ./ckpt/mt5
