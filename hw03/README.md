@@ -51,3 +51,4 @@ bash ./run.sh /path/to/input.jsonl /path/to/output.jsonl
 ## Reference
 
 - Data & Evaluation (ROUGE score with chinese word segmentation): [moooooser999/ADL22-HW3](https://github.com/moooooser999/ADL22-HW3)
+- Sample code: [huggingface/transformers](https://github.com/huggingface/transformers/tree/main/examples/pytorch/summarization)

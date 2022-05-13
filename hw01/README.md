@@ -73,3 +73,7 @@ Apply slot tagging on testing file.
 ```shell
 bash ./slot_tag.sh /path/to/test.json /path/to/pred.csv
 ```
+
+## Reference
+
+- Sample code: [ntu-adl-ta/ADL21-HW1](https://github.com/ntu-adl-ta/ADL21-HW1)

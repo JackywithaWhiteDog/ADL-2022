@@ -69,3 +69,11 @@ Train the slot tagging model, evaluate with the validation set, and apply to the
 ```shell
 bash ./slot.sh
 ```
+
+## Reference
+
+- Sample code: [huggingface/transformers](https://github.com/huggingface/transformers)
+    - [Multiple choice](https://github.com/huggingface/transformers/tree/main/examples/pytorch/multiple-choice)
+    - [Question answering](https://github.com/huggingface/transformers/tree/main/examples/pytorch/question-answering)
+    - [Intent classification](https://github.com/huggingface/transformers/tree/main/examples/pytorch/text-classification)
+    - [Slot tagging](https://github.com/huggingface/transformers/tree/main/examples/pytorch/token-classification)
