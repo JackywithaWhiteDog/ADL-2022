@@ -206,14 +206,14 @@ if __name__ == "__main__":
         # compute_metrics=compute_metrics,
     )
 
-    # train_result = trainer.train()
-    # trainer.save_model()
-    # metrics = train_result.metrics
-    # metrics["train_samples"] = len(train_dataset)
+    train_result = trainer.train()
+    trainer.save_model()
+    metrics = train_result.metrics
+    metrics["train_samples"] = len(train_dataset)
 
-    # trainer.log_metrics("train", metrics)
-    # trainer.save_metrics("train", metrics)
-    # trainer.save_state()
+    trainer.log_metrics("train", metrics)
+    trainer.save_metrics("train", metrics)
+    trainer.save_state()
 
   
     # test
