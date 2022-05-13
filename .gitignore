@@ -1,6 +1,9 @@
 # Python cache
 __pycache__/
 
+# Complied file
+*.egg-info/
+
 # Pyenv
 .python-version
 
