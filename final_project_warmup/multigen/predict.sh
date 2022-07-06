@@ -4,8 +4,8 @@ SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
 DEVICE=5
 ROOT_PATH=.
-DATA_TYPE=out_of_domain
-PRE_TRAINED=gpt2-small
+DATA_TYPE=in_domain
+PRE_TRAINED=anlg
 
 CUDA_VISIBLE_DEVICES=${DEVICE} \
 python3 ${SCRIPT_DIR}/scripts/main.py \
@@ -28,4 +28,4 @@ python3 ${SCRIPT_DIR}/scripts/main.py \
 --aggregate_method max \
 --gamma 0.5 \
 --sampling \
---sampling_topk 5
+--sampling_topk 2

@@ -4,7 +4,7 @@ SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
 DATA_TYPE=out_of_domain
 SPLIT=test
-PRE_TRAINED=gpt2-small
+PRE_TRAINED=anlg
 
 python3.8 ${SCRIPT_DIR}/make_dialogues.py \
     ./data/${DATA_TYPE}/test/source.csv \

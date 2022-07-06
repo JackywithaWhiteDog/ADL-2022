@@ -2,11 +2,11 @@
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
-DEVICE=5
+DEVICE=6
 ROOT_PATH=.
 DATA_TYPE=out_of_domain
-PRE_TRAINED=gpt2-small
-PRE_TRAINED_DIR=gpt2-small
+PRE_TRAINED=anlg
+PRE_TRAINED_DIR=anlg/grf-anlg_gpt2-small
 
 CUDA_VISIBLE_DEVICES=${DEVICE} \
 python3 ${SCRIPT_DIR}/scripts/main.py \
